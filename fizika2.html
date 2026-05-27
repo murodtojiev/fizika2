@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fizika 2 - Yakuniy Nazorat Testlari</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #4F46E5;
+            --primary-hover: #4338CA;
+            --bg-color: #F3F4F6;
+            --card-bg: #FFFFFF;
+            --text-main: #1F2937;
+            --text-muted: #6B7280;
+            --success: #10B981;
+            --error: #EF4444;
+            --border: #E5E7EB;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* Prevent body scroll, handle in columns */
+        }
+
+        header {
+            background-color: var(--card-bg);
+            padding: 1rem 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 10;
+        }
+
+        h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .btn-finish {
+            padding: 0.5rem 1rem;
+            background-color: var(--error);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .btn-finish:hover {
+            background-color: #DC2626;
+        }
+
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Left side - PDF Viewer */
+        .pdf-section {
+            flex: 1;
+            border-right: 1px solid var(--border);
+            background-color: #525659; /* Standard PDF viewer background */
+            display: flex;
+            flex-direction: column;
+        }
+
+        .pdf-frame {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        /* Right side - Answer Sheet */
+        .answer-section {
+            width: 400px;
+            background-color: var(--bg-color);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .results-container {
+            display: none;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.5rem;
+            padding: 1rem;
+            background-color: white;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .result-box {
+            background-color: #F9FAFB;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem 0.5rem;
+            text-align: center;
+        }
+
+        .result-box.percentage { border-color: var(--primary); background-color: #EEF2FF; }
+        .result-box.score { border-color: #F59E0B; background-color: #FEF3C7; }
+        .result-box.correct-count { border-color: var(--success); background-color: #D1FAE5; }
+
+        .result-value {
+            font-size: 1.5rem;
+            font-weight: 800;
+            margin-bottom: 0.25rem;
+        }
+
+        .result-box.percentage .result-value { color: var(--primary); }
+        .result-box.score .result-value { color: #D97706; }
+        .result-box.correct-count .result-value { color: #059669; }
+
+        .result-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .questions-grid {
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .q-row {
+            display: flex;
+            align-items: center;
+            background: white;
+            padding: 0.75rem;
+            border-radius: 8px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+
+        .q-num {
+            width: 40px;
+            font-weight: 700;
+            color: var(--text-main);
+            font-size: 0.95rem;
+        }
+
+        .q-options {
+            display: flex;
+            gap: 0.5rem;
+            flex: 1;
+        }
+
+        .opt-btn {
+            flex: 1;
+            height: 36px;
+            border: 1px solid var(--border);
+            background: white;
+            border-radius: 6px;
+            font-weight: 600;
+            color: var(--text-main);
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .opt-btn:hover:not(.disabled) {
+            background-color: #F3F4F6;
+            border-color: #D1D5DB;
+        }
+
+        .opt-btn.correct {
+            background-color: #D1FAE5;
+            border-color: var(--success);
+            color: #065F46;
+        }
+
+        .opt-btn.incorrect {
+            background-color: #FEE2E2;
+            border-color: var(--error);
+            color: #991B1B;
+        }
+
+        .opt-btn.disabled {
+            cursor: default;
+            opacity: 0.8;
+        }
+
+        @media (max-width: 800px) {
+            body {
+                overflow: auto;
+            }
+            .main-content {
+                flex-direction: column;
+                overflow: visible;
+            }
+            .pdf-section {
+                height: 50vh;
+                border-right: none;
+                border-bottom: 2px solid var(--border);
+            }
+            .answer-section {
+                width: 100%;
+                height: auto;
+                overflow: visible;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Fizika 2: Yakuniy Nazorat</h1>
+        <div class="header-actions">
+            <span style="font-size: 0.875rem; color: var(--text-muted); font-weight: 500;">Barcha savollar: 200 ta</span>
+            <button class="btn-finish" id="btn-finish" onclick="finishTest()">Testni tugatish</button>
+        </div>
+    </header>
+
+    <div class="main-content">
+        <!-- PDF Viewer on the left -->
+        <div class="pdf-section">
+            <!-- Using object tag for better PDF rendering support in some browsers, iframe is fallback -->
+            <object data="fizika2.pdf" type="application/pdf" class="pdf-frame">
+                <iframe src="fizika2.pdf" class="pdf-frame">
+                    Bu brauzerda PDF larni to'g'ridan to'g'ri ochish imkoni yo'q. PDF faylni <a href="fizika2.pdf">yuklab oling</a>.
+                </iframe>
+            </object>
+        </div>
+
+        <!-- Answer Sheet on the right -->
+        <div class="answer-section">
+            
+            <!-- Results area -->
+            <div class="results-container" id="results-section">
+                <div class="result-box percentage">
+                    <div class="result-value" id="res-percentage">0%</div>
+                    <div class="result-label">Natija (Foiz)</div>
+                </div>
+                <div class="result-box score">
+                    <div class="result-value" id="res-score">0</div>
+                    <div class="result-label">To'plangan Ball</div>
+                </div>
+                <div class="result-box correct-count">
+                    <div class="result-value" id="res-correct">0</div>
+                    <div class="result-label">To'g'ri Javoblar</div>
+                </div>
+            </div>
+
+            <!-- Questions Grid -->
+            <div class="questions-grid" id="questions-grid">
+                <!-- Javascript will inject 200 rows here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Haqiqiy kalitlar massivi (0=A, 1=B, 2=C, 3=D) - Jami 200 ta
+        const answerKeys = [1, 1, 1, 1, 2, 2, 1, 1, 2, 0, 1, 2, 1, 0, 2, 1, 1, 3, 3, 1, 0, 1, 2, 3, 2, 1, 2, 0, 3, 1, 0, 2, 3, 2, 3, 3, 2, 0, 1, 0, 0, 1, 1, 1, 2, 1, 2, 0, 3, 2, 0, 2, 2, 2, 3, 1, 3, 2, 2, 1, 1, 1, 2, 0, 1, 1, 2, 2, 3, 3, 1, 3, 2, 0, 3, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 3, 0, 0, 3, 0, 0, 0, 0, 1, 3, 2, 0, 2, 1, 2, 1, 2, 1, 2, 0, 0, 3, 1, 3, 2, 1, 2, 1, 2, 0, 3, 1, 3, 0, 2, 1, 1, 1, 0, 2, 0, 2, 2, 2, 2, 1, 2, 1, 0, 1, 2, 3, 1, 2, 0, 1, 1, 2, 3, 1, 2, 2, 1, 1, 2, 0, 1, 1, 1, 0, 0, 2, 3, 0, 3, 3, 3, 1, 0, 0, 1, 1, 1, 1, 3, 0, 1, 3, 2, 1, 2, 1, 3, 2, 1, 0, 0, 1, 2, 3, 3, 2, 0, 0, 0, 2, 1, 2, 0, 2, 3];
+        const TOTAL_QUESTIONS = 200;
+        
+        let answersState = {}; // { qIndex: { selectedOpt: number, isCorrect: boolean } }
+        let isFinished = false;
+
+        const grid = document.getElementById('questions-grid');
+        const letters = ['A', 'B', 'C', 'D'];
+
+        // Initialize grid
+        function initGrid() {
+            let html = '';
+            for (let i = 0; i < TOTAL_QUESTIONS; i++) {
+                let optionsHtml = '';
+                for (let opt = 0; opt < 4; opt++) {
+                    optionsHtml += `<button class="opt-btn" id="btn-${i}-${opt}" onclick="selectOption(${i}, ${opt})">${letters[opt]}</button>`;
+                }
+
+                html += `
+                    <div class="q-row" id="row-${i}">
+                        <div class="q-num">${i + 1}.</div>
+                        <div class="q-options">
+                            ${optionsHtml}
+                        </div>
+                    </div>
+                `;
+            }
+            grid.innerHTML = html;
+        }
+
+        function selectOption(qIndex, optIndex) {
+            if (isFinished) return;
+            if (answersState[qIndex] !== undefined) return; // Already answered
+
+            const correctOpt = answerKeys[qIndex];
+            const isCorrect = (optIndex === correctOpt);
+
+            answersState[qIndex] = {
+                selectedOpt: optIndex,
+                isCorrect: isCorrect
+            };
+
+            // Update UI for this question
+            updateRowUI(qIndex);
+        }
+
+        function updateRowUI(qIndex) {
+            const state = answersState[qIndex];
+            if (!state) return;
+
+            const correctOpt = answerKeys[qIndex];
+
+            for (let opt = 0; opt < 4; opt++) {
+                const btn = document.getElementById(`btn-${qIndex}-${opt}`);
+                btn.classList.add('disabled');
+
+                if (opt === correctOpt) {
+                    btn.classList.add('correct');
+                } else if (opt === state.selectedOpt && !state.isCorrect) {
+                    btn.classList.add('incorrect');
+                }
+            }
+        }
+
+        function finishTest() {
+            if (!confirm('Haqiqatan ham testni yakunlamoqchimisiz?')) return;
+            
+            isFinished = true;
+            document.getElementById('btn-finish').style.display = 'none';
+
+            let correctCount = 0;
+            
+            for (let i = 0; i < TOTAL_QUESTIONS; i++) {
+                // If they missed a question, we can mark the correct answer anyway
+                if (!answersState[i]) {
+                    const correctOpt = answerKeys[i];
+                    const btn = document.getElementById(`btn-${i}-${correctOpt}`);
+                    if (btn) btn.classList.add('correct');
+                    
+                    // Disable all buttons for this question
+                    for(let opt=0; opt<4; opt++){
+                        const b = document.getElementById(`btn-${i}-${opt}`);
+                        if(b) b.classList.add('disabled');
+                    }
+                } else if (answersState[i].isCorrect) {
+                    correctCount++;
+                }
+            }
+
+            const percentage = ((correctCount / TOTAL_QUESTIONS) * 100).toFixed(1);
+            const score = correctCount * 2.5; // Misol uchun har biriga 2.5 balldan
+
+            // Display results
+            const resultsSection = document.getElementById('results-section');
+            resultsSection.style.display = 'grid';
+            
+            document.getElementById('res-percentage').innerText = percentage + '%';
+            document.getElementById('res-score').innerText = score;
+            document.getElementById('res-correct').innerText = correctCount + ' / ' + TOTAL_QUESTIONS;
+            
+            // Scroll right section to top to see results
+            document.querySelector('.answer-section').scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Run
+        window.onload = initGrid;
+    </script>
+</body>
+</html>
