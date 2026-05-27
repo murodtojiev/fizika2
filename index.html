@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fizika 2 - Yakuniy Nazorat Testlari</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <style>
         :root {
             --primary: #4F46E5;
@@ -87,10 +88,44 @@
             flex-direction: column;
         }
 
-        .pdf-frame {
-            width: 100%;
-            height: 100%;
+        .pdf-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            background: #374151;
+            color: white;
+            font-size: 0.875rem;
+        }
+
+        .pdf-controls button {
+            background: var(--primary);
+            color: white;
             border: none;
+            padding: 0.4rem 0.8rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        
+        .pdf-controls button:disabled {
+            background: #6B7280;
+            cursor: not-allowed;
+        }
+
+        .pdf-container {
+            flex: 1;
+            overflow: auto;
+            display: flex;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        #pdf-render {
+            max-width: 100%;
+            height: auto;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            background: white;
         }
 
         /* Right side - Answer Sheet */
@@ -240,12 +275,14 @@
     <div class="main-content">
         <!-- PDF Viewer on the left -->
         <div class="pdf-section">
-            <!-- Using object tag for better PDF rendering support in some browsers, iframe is fallback -->
-            <object data="fizika2.pdf" type="application/pdf" class="pdf-frame">
-                <iframe src="fizika2.pdf" class="pdf-frame">
-                    Bu brauzerda PDF larni to'g'ridan to'g'ri ochish imkoni yo'q. PDF faylni <a href="fizika2.pdf">yuklab oling</a>.
-                </iframe>
-            </object>
+            <div class="pdf-controls">
+                <button id="prev-page" onclick="onPrevPage()">Ortga</button>
+                <span>Sahifa: <span id="page-num"></span> / <span id="page-count"></span></span>
+                <button id="next-page" onclick="onNextPage()">Oldinga</button>
+            </div>
+            <div class="pdf-container" id="pdf-container">
+                <canvas id="pdf-render"></canvas>
+            </div>
         </div>
 
         <!-- Answer Sheet on the right -->
@@ -284,6 +321,79 @@
 
         const grid = document.getElementById('questions-grid');
         const letters = ['A', 'B', 'C', 'D'];
+
+        // PDF.js Logic
+        const url = 'fizika2.pdf';
+        let pdfDoc = null,
+            pageNum = 1,
+            pageIsRendering = false,
+            pageNumIsPending = null;
+
+        const scale = 1.5,
+              canvas = document.getElementById('pdf-render'),
+              ctx = canvas.getContext('2d');
+
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+        // Render the page
+        const renderPage = num => {
+            pageIsRendering = true;
+
+            pdfDoc.getPage(num).then(page => {
+                const viewport = page.getViewport({ scale });
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+
+                const renderCtx = {
+                    canvasContext: ctx,
+                    viewport: viewport
+                };
+
+                page.render(renderCtx).promise.then(() => {
+                    pageIsRendering = false;
+
+                    if (pageNumIsPending !== null) {
+                        renderPage(pageNumIsPending);
+                        pageNumIsPending = null;
+                    }
+                });
+
+                document.getElementById('page-num').textContent = num;
+                
+                // Scroll container to top when page changes
+                document.getElementById('pdf-container').scrollTop = 0;
+            });
+        };
+
+        const queueRenderPage = num => {
+            if (pageIsRendering) {
+                pageNumIsPending = num;
+            } else {
+                renderPage(num);
+            }
+        };
+
+        const onPrevPage = () => {
+            if (pageNum <= 1) return;
+            pageNum--;
+            queueRenderPage(pageNum);
+        };
+
+        const onNextPage = () => {
+            if (pageNum >= pdfDoc.numPages) return;
+            pageNum++;
+            queueRenderPage(pageNum);
+        };
+
+        pdfjsLib.getDocument(url).promise.then(pdfDoc_ => {
+            pdfDoc = pdfDoc_;
+            document.getElementById('page-count').textContent = pdfDoc.numPages;
+            renderPage(pageNum);
+        }).catch(err => {
+            console.error('PDF yuklashda xatolik:', err);
+            const container = document.getElementById('pdf-container');
+            container.innerHTML = `<div style="padding:2rem;text-align:center;color:white;">PDF faylni yuklab bo'lmadi. <br><a href="${url}" style="color:#60A5FA;">Bu yerdan yuklab oling</a></div>`;
+        });
 
         // Initialize grid
         function initGrid() {
